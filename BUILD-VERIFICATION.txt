@@ -14,3 +14,10 @@ Could not set X locale modifiers
 PASS renderer: hover/copy feedback, falling card frame and fully retracted transparent frame
 PASS GUI: clipboard image, persisted shelf restore, file pruning, non-destructive removal, screen-width card bound
 PASS GUI: startup, stable-file watching, three aspect-ratio image cards, per-pixel-alpha transparency, shared overlay renderer
+
+Snipping Tool change tests (native Windows activation not tested):
+PASS Snipping Tool editor: exact Unicode/spaces path routing, missing/invalid-file guards, rejected activation handling (native Windows activation NOT tested)
+PASS: image types, collision-safe names, settings roundtrip, corrupt settings recovery, image loading without file locks
+PASS renderer: hover/copy feedback, falling card frame and fully retracted transparent frame
+PASS GUI: clipboard image, persisted shelf restore, file pruning, non-destructive removal, screen-width card bound
+PASS GUI: startup, stable-file watching, three aspect-ratio image cards, per-pixel-alpha transparency, shared overlay renderer
