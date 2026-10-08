@@ -1,16 +1,35 @@
 using System;
 using System.IO;
 using System.Runtime.InteropServices;
+using System.Threading.Tasks;
 
 namespace Snapline {
- // Use the Windows.File activation contract, not an undocumented exe argument
- // or the deprecated ms-screensketch annotation protocol. No default app changes.
+ // Shared-file-token annotation first, Windows.File activation second.
+ // No default app changes or synthetic keyboard input.
  internal static class SnippingToolEditor {
   internal const string AppId = "Microsoft.ScreenSketch_8wekyb3d8bbwe!App";
   static IApplicationActivationManager manager;
 
-  internal static bool TryOpen(string path, out string error) {
-   return TryOpen(path, ActivateFile, out error);
+  internal static string AnnotationUri(string token) {
+   if(string.IsNullOrWhiteSpace(token))throw new ArgumentException("Missing shared file token.");
+   return "ms-screensketch:edit?source=Snapline&isTemporary=false&sharedAccessToken="+Uri.EscapeDataString(token);
+  }
+  internal static async Task<string> OpenAsync(string path) {
+   string full;
+   try {
+    if(string.IsNullOrWhiteSpace(path))throw new ArgumentException("No image was selected.");
+    full=Path.GetFullPath(path);
+    if(!File.Exists(full))throw new FileNotFoundException("The selected image no longer exists.");
+    if(!Helpers.IsImage(full))throw new ArgumentException("The selected file is not a supported image.");
+   }catch(Exception e){return e.Message;}
+   string tokenError;
+   try {
+    await SnippingToolToken.OpenAsync(full);
+    return null;
+   }catch(Exception e){tokenError="Shared-token annotation: "+e.Message+" (0x"+e.HResult.ToString("X8")+")";}
+   // Some installations remove the legacy edit protocol. Retain Windows.File
+   // activation as a secondary route, followed by explicit manual instructions.
+   try{ActivateFile(full);return null;}catch(Exception e){return tokenError+"\r\nFile activation: "+e.Message+" (0x"+e.HResult.ToString("X8")+")";}
   }
 
   // Separate validation from native activation so the failure paths can be
@@ -70,6 +89,8 @@ namespace Snapline {
    var file=Path.Combine(folder,"snip unicode 日本 & space.png");
    File.WriteAllText(file,"activation fixture");
    string error,received=null;int calls=0;
+   var uri=AnnotationUri("token &/日本");
+   if(!uri.Contains("isTemporary=false")||!uri.Contains("sharedAccessToken=token%20%26%2F")||uri.Contains(file))throw new Exception("Annotation token encoding/deletion guard failed");
    if(!TryOpen(file,p=>{calls++;received=p;},out error)||received!=Path.GetFullPath(file)||calls!=1)
     throw new Exception("Snipping editor path routing failed");
    if(TryOpen(Path.Combine(folder,"missing.png"),p=>calls++,out error)||calls!=1||error==null)

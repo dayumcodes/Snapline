@@ -56,7 +56,7 @@ The line fits your display width. When it fills up, older cards leave the line, 
 | <kbd>Ctrl</kbd> + <kbd>Alt</kbd> + <kbd>S</kbd> | Capture a region with Windows Snipping Tool. |
 | <kbd>Ctrl</kbd> + <kbd>Alt</kbd> + <kbd>P</kbd> | Capture the display under your pointer. |
 
-Hold-to-markup uses Windows file activation to open the selected image in Snipping Tool, without changing image associations or the clipboard. If Windows rejects direct activation, Snapline opens Snipping Tool and shows the exact file path to open with **Ctrl+O**. If the editor opens without loading the image, right-click the card and choose **Snipping Tool: open manually...** for the same instructions. Save over the original file to refresh its thumbnail; Save As to another folder leaves the original unchanged. This native integration still needs testing on Windows 11.
+Hold-to-markup first tries a shared-file-token annotation handoff to Windows Snipping Tool, then Windows file activation. The token route uses a deprecated compatibility protocol and still needs testing on Windows 11; it is not guaranteed on every app version. If direct handoff fails, Snapline opens Snipping Tool and shows the exact file path and error codes with **Ctrl+O** instructions. If the editor opens without loading the image, right-click the card and choose **Snipping Tool: open manually...**. Save over the original file to refresh its thumbnail; Save As preserves the original. See [handoff notes](SNIPPING-TOOL-MARKUP.md).
 
 Use the tray menu to keep the line visible, import images, manage watched folders, or quit. If another app has a shortcut already, use the tray instead.
 
@@ -155,7 +155,8 @@ The build downloads Microsoft's .NET Framework reference assemblies through NuGe
 | File | Purpose |
 | :-- | :-- |
 | `Source/Program.cs` | Shelf rendering, card gestures, animation, capture, file watching, tray controls, and settings. |
-| `Source/SnippingToolEditor.cs` | Windows file activation for markup, validation, and testable failure handling. |
+| `Source/SnippingToolEditor.cs` | Handoff routing, fallback, validation and tests. |
+| `Source/SnippingToolToken.cs` | WinRT shared-file-token annotation launch. |
 | `Source/Snapline.csproj` | .NET Framework target and build configuration. |
 | `Source/app.manifest` | Windows compatibility, DPI awareness, and standard-user execution. |
 | `Source/snapline.ico` | Snapline's original icon. |
