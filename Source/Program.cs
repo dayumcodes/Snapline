@@ -70,7 +70,7 @@ namespace Snapline {
    hold.Interval=450;hold.Tick+=(s,e)=>{hold.Stop();if(Pressed&&!Dragged){Held=true;Pressed=false;shelf.EditImage(p);}};
    var menu=new ContextMenuStrip();
    menu.Items.Add("Copy image",null,(s,e)=>shelf.CopyImage(p));menu.Items.Add("Open",null,(s,e)=>shelf.OpenImage(p));
-   menu.Items.Add("Edit in Paint",null,(s,e)=>shelf.EditImage(p));menu.Items.Add("Save a copy...",null,(s,e)=>shelf.SaveCopy(p));
+   menu.Items.Add("Markup in Snipping Tool",null,(s,e)=>shelf.EditImage(p));menu.Items.Add("Snipping Tool: open manually...",null,(s,e)=>shelf.OpenMarkupManually(p,"Use this if your Snipping Tool build does not load the image automatically."));menu.Items.Add("Save a copy...",null,(s,e)=>shelf.SaveCopy(p));
    menu.Items.Add("Show in folder",null,(s,e)=>shelf.RevealFile(p));menu.Items.Add("Take down (keep file)",null,(s,e)=>shelf.Remove(p));
    menu.Items.Add("Move to Recycle Bin...",null,(s,e)=>shelf.Recycle(p));ContextMenuStrip=menu;
   }
@@ -158,7 +158,7 @@ namespace Snapline {
    var pin=new ToolStripMenuItem("Keep line visible"){CheckOnClick=true};pin.Click+=(s,e)=>{pinned=pin.Checked;if(pinned)Reveal(Screen.FromPoint(Cursor.Position));};menu.Items.Add(pin);
    var clip=new ToolStripMenuItem("Auto-collect clipboard images (opt in)"){Checked=settings.WatchClipboard,CheckOnClick=true};clip.Click+=(s,e)=>{settings.WatchClipboard=clip.Checked;sequence=Native.GetClipboardSequenceNumber();SaveSettings();if(clip.Checked)Notify("Enabled: any new clipboard image may be saved locally, not just screenshots. Turn this off here anytime.");};menu.Items.Add(clip);
    menu.Items.Add("Add a screenshot folder...",null,(s,e)=>ChooseFolder());menu.Items.Add("Manage watched folders...",null,(s,e)=>ManageFolders());menu.Items.Add("Open saved captures",null,(s,e)=>Run(inbox));menu.Items.Add("Clear shelf (keep all files)",null,(s,e)=>{settings.Items.Clear();RefreshCards();SaveSettings();});
-   menu.Items.Add("About / help",null,(s,e)=>MessageBox.Show("Snapline for Windows\nAn independent Windows adaptation of Tendedero's screenshot shelf.\n\nTouch the top edge for a moment to reveal it.\nClick: copy image. Double-click: open. Hold: Paint.\nDrag: send the file. Right-click: save, reveal, remove, recycle.\n\nCtrl+Alt+T: shelf; Ctrl+Alt+S: region; Ctrl+Alt+P: screen.\nFiles stay on your PC. Clipboard auto-collection is off by default.\nNo account, network access or telemetry.\nSee README.txt for differences and testing limits.","Snapline",MessageBoxButtons.OK,MessageBoxIcon.Information));
+   menu.Items.Add("About / help",null,(s,e)=>MessageBox.Show("Snapline for Windows\nAn independent Windows adaptation of Tendedero's screenshot shelf.\n\nTouch the top edge for a moment to reveal it.\nClick: copy image. Double-click: open. Hold: Snipping Tool.\nDrag: send the file. Right-click: save, reveal, remove, recycle.\n\nCtrl+Alt+T: shelf; Ctrl+Alt+S: region; Ctrl+Alt+P: screen.\nFiles stay on your PC. Clipboard auto-collection is off by default.\nNo account, network access or telemetry.\nSee README.md for differences and testing limits.","Snapline",MessageBoxButtons.OK,MessageBoxIcon.Information));
    menu.Items.Add("Quit",null,(s,e)=>{SaveSettings();tick.Stop();tray.Visible=false;Application.Exit();});
    tray=new NotifyIcon{Icon=Icon??SystemIcons.Application,Text="Snapline - screenshot shelf",ContextMenuStrip=menu,Visible=!qa};tray.DoubleClick+=(s,e)=>Reveal(Screen.FromPoint(Cursor.Position));
   }
@@ -171,7 +171,24 @@ namespace Snapline {
   internal void Remove(string p){settings.Items.Remove(p);var c=AllCards().FirstOrDefault(k=>k.PathName==p);if(c!=null&&Visible&&!qa){c.Falling=true;c.FallStart=DateTime.Now;}else if(c!=null){cards.Controls.Remove(c);c.Dispose();}SaveSettings();}
   internal void CopyImage(string p){try{var im=Helpers.LoadImage(p);try{Clipboard.SetDataObject(new DataObject(DataFormats.Bitmap,im),true,5,100);var old=clipboardImage;clipboardImage=im;if(old!=null)old.Dispose();}catch{im.Dispose();throw;}if(!qa)sequence=Native.GetClipboardSequenceNumber();var card=AllCards().FirstOrDefault(c=>c.PathName==p);if(card!=null){card.Copied=DateTime.Now;card.Nudged=DateTime.Now;}}catch(Exception e){Notify("Copy failed: "+e.Message);}}
   internal void OpenImage(string p){Run(p);}
-  internal void EditImage(string p){Run("mspaint.exe","\""+p+"\"");}
+  internal void EditImage(string p){
+   // Do not steal the clipboard or send keyboard input to another application.
+   Hide();slide=-222;targetSlide=-222;pinned=false;
+   string error;
+   if(SnippingToolEditor.TryOpen(p,out error))return;
+   if(!File.Exists(p)){Notify("Cannot open markup: "+error);return;}
+   OpenMarkupManually(p,error);
+  }
+  internal void OpenMarkupManually(string p,string reason){
+   bool launched=false;
+   try{Process.Start(new ProcessStartInfo("explorer.exe","shell:AppsFolder\\"+SnippingToolEditor.AppId){UseShellExecute=true});launched=true;}catch{}
+   using(var dialog=new Form{Text="Open image in Snipping Tool",Size=new Size(640,250),StartPosition=FormStartPosition.CenterScreen,TopMost=true}){
+    var description=new Label{Dock=DockStyle.Top,Height=115,Padding=new Padding(12),Text=(launched?"Windows could not hand this image directly to Snipping Tool. It has been asked to open.":"Snipping Tool could not be launched. Install or update it, then open it from Start.")+"\n\nIn Snipping Tool, press Ctrl+O and open the file below. If the editor opened but no image loaded, use this same step. Save to the original path to refresh its shelf thumbnail.\n\nDetails: "+reason};
+    var pathBox=new TextBox{Dock=DockStyle.Top,ReadOnly=true,Text=Path.GetFullPath(p)};
+    var done=new Button{Dock=DockStyle.Bottom,Height=36,Text="Close instructions"};done.Click+=(sender,args)=>dialog.Close();
+    dialog.Controls.Add(pathBox);dialog.Controls.Add(description);dialog.Controls.Add(done);dialog.ShowDialog();
+   }
+  }
   internal void RevealFile(string p){Run("explorer.exe","/select,\""+p+"\"");}
   void Run(string file,string args=null){try{Process.Start(new ProcessStartInfo(file,args??""){UseShellExecute=true});}catch(Exception e){Notify("Couldn't open: "+e.Message);}}
   internal void SaveCopy(string p){using(var dialog=new SaveFileDialog{FileName=Path.GetFileName(p),Filter="Image file|*"+Path.GetExtension(p),OverwritePrompt=true}){if(dialog.ShowDialog()!=DialogResult.OK)return;try{if(!string.Equals(Path.GetFullPath(p),Path.GetFullPath(dialog.FileName),StringComparison.OrdinalIgnoreCase))File.Copy(p,dialog.FileName,true);Notify("Copy saved. Original stays on the shelf.");}catch(Exception e){Notify("Save failed: "+e.Message);}}}
@@ -220,6 +237,6 @@ namespace Snapline {
     using(var shelf=new Shelf())Application.Run(shelf);return 0;
    }
   }
-  static int Test(){var dir=Path.Combine(Path.GetTempPath(),"snapline-test-"+Guid.NewGuid());Directory.CreateDirectory(dir);try{if(!Helpers.IsImage("a.PNG")||Helpers.IsImage("a.exe"))throw new Exception("Extensions");File.WriteAllText(Path.Combine(dir,"a.png"),"test");if(Helpers.Unique(dir,"a.png")!=Path.Combine(dir,"a (2).png"))throw new Exception("Collision");var s=new Settings();s.Folders.Add("C:\\Users\\A&B\\Screenshots");s.Items.Add("日本語.png");s.WatchClipboard=true;var file=Path.Combine(dir,"settings.xml");s.Save(file);var restored=Settings.Load(file);if(!restored.WatchClipboard||restored.Items[0]!=s.Items[0]||restored.Folders[0]!=s.Folders[0])throw new Exception("Settings roundtrip");File.WriteAllText(file,"broken");if(Settings.Load(file).Items.Count!=0)throw new Exception("Corrupt settings fallback");using(var b=new Bitmap(20,10))b.Save(Path.Combine(dir,"image.png"),ImageFormat.Png);using(var im=Helpers.LoadImage(Path.Combine(dir,"image.png")))if(im.Width!=20)throw new Exception("Image load");File.Delete(Path.Combine(dir,"image.png"));Console.WriteLine("PASS: image types, collision-safe names, settings roundtrip, corrupt settings recovery, image loading without file locks");return 0;}finally{Directory.Delete(dir,true);}}
+  static int Test(){var dir=Path.Combine(Path.GetTempPath(),"snapline-test-"+Guid.NewGuid());Directory.CreateDirectory(dir);try{SnippingToolEditor.SelfTest(dir);if(!Helpers.IsImage("a.PNG")||Helpers.IsImage("a.exe"))throw new Exception("Extensions");File.WriteAllText(Path.Combine(dir,"a.png"),"test");if(Helpers.Unique(dir,"a.png")!=Path.Combine(dir,"a (2).png"))throw new Exception("Collision");var s=new Settings();s.Folders.Add("C:\\Users\\A&B\\Screenshots");s.Items.Add("日本語.png");s.WatchClipboard=true;var file=Path.Combine(dir,"settings.xml");s.Save(file);var restored=Settings.Load(file);if(!restored.WatchClipboard||restored.Items[0]!=s.Items[0]||restored.Folders[0]!=s.Folders[0])throw new Exception("Settings roundtrip");File.WriteAllText(file,"broken");if(Settings.Load(file).Items.Count!=0)throw new Exception("Corrupt settings fallback");using(var b=new Bitmap(20,10))b.Save(Path.Combine(dir,"image.png"),ImageFormat.Png);using(var im=Helpers.LoadImage(Path.Combine(dir,"image.png")))if(im.Width!=20)throw new Exception("Image load");File.Delete(Path.Combine(dir,"image.png"));Console.WriteLine("PASS: image types, collision-safe names, settings roundtrip, corrupt settings recovery, image loading without file locks");return 0;}finally{Directory.Delete(dir,true);}}
  }
 }

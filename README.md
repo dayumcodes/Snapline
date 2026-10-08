@@ -37,7 +37,7 @@ Small silver clips, rounded frames, and a gentle sway. No toolbar or extra windo
 | :-- | :-- |
 | Click a card | Copy the image, ready to paste. |
 | Double-click | Open it in your default image viewer. |
-| Press and hold | Edit the original in Paint. |
+| Press and hold | Open the image for markup in Windows Snipping Tool. |
 | Drag into an app | Send the file to an app that accepts file drops. |
 | Drag into File Explorer | Copy or move, as chosen by the destination. Moved originals leave the line. |
 | Hover over a card | Show its corner cross. |
@@ -55,6 +55,8 @@ The line fits your display width. When it fills up, older cards leave the line, 
 | <kbd>Ctrl</kbd> + <kbd>Alt</kbd> + <kbd>T</kbd> | Show or hide the line. |
 | <kbd>Ctrl</kbd> + <kbd>Alt</kbd> + <kbd>S</kbd> | Capture a region with Windows Snipping Tool. |
 | <kbd>Ctrl</kbd> + <kbd>Alt</kbd> + <kbd>P</kbd> | Capture the display under your pointer. |
+
+Hold-to-markup uses Windows file activation to open the selected image in Snipping Tool, without changing image associations or the clipboard. If Windows rejects direct activation, Snapline opens Snipping Tool and shows the exact file path to open with **Ctrl+O**. If the editor opens without loading the image, right-click the card and choose **Snipping Tool: open manually...** for the same instructions. Save over the original file to refresh its thumbnail; Save As to another folder leaves the original unchanged. This native integration still needs testing on Windows 11.
 
 Use the tray menu to keep the line visible, import images, manage watched folders, or quit. If another app has a shortcut already, use the tray instead.
 
@@ -114,7 +116,7 @@ If you already have `Snapline-Windows11-v1.1.zip`:
 4. Look for its icon beside the clock, including inside the hidden-icons arrow.
 5. Press <kbd>Ctrl</kbd> + <kbd>Alt</kbd> + <kbd>T</kbd> to show the line.
 
-No compiler, Node, Python, administrator access, or additional runtime installation is needed on a standard Windows 11 system. Paint and Snipping Tool must be installed for their respective actions.
+No compiler, Node, Python, administrator access, or additional runtime installation is needed on a standard Windows 11 system. Snipping Tool must be installed for region capture and markup.
 
 The executable is **unsigned**. Windows may show an unknown-publisher or SmartScreen warning. Keep Windows security protections enabled. If your organization's policy blocks unsigned apps, use its approved review and signing process.
 
@@ -153,6 +155,7 @@ The build downloads Microsoft's .NET Framework reference assemblies through NuGe
 | File | Purpose |
 | :-- | :-- |
 | `Source/Program.cs` | Shelf rendering, card gestures, animation, capture, file watching, tray controls, and settings. |
+| `Source/SnippingToolEditor.cs` | Windows file activation for markup, validation, and testable failure handling. |
 | `Source/Snapline.csproj` | .NET Framework target and build configuration. |
 | `Source/app.manifest` | Windows compatibility, DPI awareness, and standard-user execution. |
 | `Source/snapline.ico` | Snapline's original icon. |
@@ -176,9 +179,9 @@ The distributed v1.1 package also includes a Windows smoke-test checklist and a 
 
 The v1.1 executable cross-build completed with **zero warnings and zero errors**. Tests under Mono/Xvfb covered file watching, image copying, persisted shelf restoration, safe removal, missing-file pruning, capacity, image loading, and settings recovery. Renderer checks covered transparent empty pixels, proportionate cards, hover/copy feedback, and hidden/falling frames.
 
-**No real Windows 11 test run has been completed.** Layered-window composition and click-through, focus behavior, tray integration, global hotkeys, Snipping Tool, Explorer drag/drop, Paint, Recycle Bin, full-screen detection, and multiple-monitor/DPI behavior remain unverified on Windows. This is an early build, not a certified release.
+**No real Windows 11 test run has been completed.** Layered-window composition and click-through, focus behavior, tray integration, global hotkeys, Snipping Tool, Explorer drag/drop, Snipping Tool file activation, Recycle Bin, full-screen detection, and multiple-monitor/DPI behavior remain unverified on Windows. This is an early build, not a certified release.
 
-Snapline is an independent Windows adaptation of [Tendedero](https://github.com/alejandrobujan/tendedero), not a pixel-identical macOS port. Translucent frames stand in for Apple's native glass material. Paint and the default image viewer replace Markup and Preview. The Windows top edge replaces the macOS menu bar. Precise source-area capture flights and Apple-specific desktop integration are not reproduced.
+Snapline is an independent Windows adaptation of [Tendedero](https://github.com/alejandrobujan/tendedero), not a pixel-identical macOS port. Translucent frames stand in for Apple's native glass material. Snipping Tool and the default image viewer replace Markup and Preview. The Windows top edge replaces the macOS menu bar. Precise source-area capture flights and Apple-specific desktop integration are not reproduced.
 
 <br>
 
